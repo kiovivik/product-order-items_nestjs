@@ -1,62 +1,143 @@
-import { Button, Grid, MenuItem, TextField, Typography } from '@mui/material';
-import { useState } from 'react';
-import { api } from './api';
+import React from 'react';
+import {
+  TextField,
+  Button,
+  Grid,
+  Typography,
+  Box,
+} from '@mui/material';
+import MenuItem from '@mui/material/MenuItem';
+import { useFieldArray, useForm, Controller } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useCreateOrder, useProducts } from './useOrders';
+import { CreateOrderDto } from './types';
 
-export function OrderForm({ products }: { products: { id: number; name: string; price: number; stock: number }[] }) {
-  const [userId, setUserId] = useState('');
-  const [items, setItems] = useState<{ productId?: number; quantity?: number }[]>([]);
+const schema = z.object({
+  userId: z.number().int().positive(),
+  items: z.array(
+    z.object({
+      productId: z.number().int().positive(),
+      quantity: z.number().int().positive(),
+    }),
+  ).min(1),
+});
 
-  const submit = async () => {
-    await api.post('/orders', { userId, items });
-    setUserId('');
-    setItems([]);
+type FormData = z.infer<typeof schema>;
+
+export function OrderForm() {
+  const { data: products } = useProducts();
+  const create = useCreateOrder();
+
+  const { control, handleSubmit, reset } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: { userId: 0, items: [{ productId: 0, quantity: 1 }] },
+    mode: 'onBlur',
+  });
+
+  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+
+  const onSubmit = (data: FormData) => {
+    const payload: CreateOrderDto = {
+      userId: data.userId,
+      items: data.items.map(it => ({ productId: it.productId, quantity: it.quantity })),
+    };
+
+    create.mutate(payload, {
+      onSuccess: () => {
+        reset({ userId: 0, items: [{ productId: 0, quantity: 1 }] });
+      },
+    });
   };
 
   return (
-    <>
-      <Typography variant="h6">Create Order</Typography>
-      <TextField label="User ID" value={userId} onChange={e => setUserId(e.target.value)} fullWidth sx={{ mb: 2 }} />
-      {items.map((itm, idx) => (
-        <Grid container spacing={1} key={idx}>
+    <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mb: 4 }}>
+      <Typography variant="h6" gutterBottom>Create Order</Typography>
+
+      <Controller
+        name="userId"
+        control={control}
+        render={({ field }) => (
+          <TextField
+            label="User ID"
+            type="number"
+            {...field}
+            value={field.value ?? ''}
+            onChange={(e) => field.onChange(Number(e.target.value))}
+            fullWidth
+            sx={{ mb: 2 }}
+          />
+        )}
+      />
+
+      {fields.map((f, idx) => (
+        <Grid container spacing={1} key={f.id} alignItems="center" sx={{ mb: 1 }}>
           <Grid item xs={6}>
-            <TextField
-              select
-              label="Product"
-              SelectProps={{ native: true }}
-              value={itm.productId ?? ''}
-              onChange={e => {
-                const pid = parseInt(e.target.value, 10);
-                setItems(items.map((it, j) => j === idx ? { ...it, productId: pid } : it));
-              }}
-              fullWidth
-            >
-              <option value="">Select…</option>
-              {products.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.name} (${p.price}, stock: {p.stock})
-                </option>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={4}>
-            <TextField
-              label="Qty"
-              type="number"
-              value={itm.quantity ?? ''}
-              onChange={e => {
-                const qty = parseInt(e.target.value, 10);
-                setItems(items.map((it, j) => j === idx ? { ...it, quantity: qty } : it));
-              }}
-              fullWidth
+            <Controller
+              name={`items.${idx}.productId` as const}
+              control={control}
+              render={({ field }) => (
+                  <Controller
+                    name={`items.${idx}.productId` as const}
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                         select
+                         label="Product"
+                         {...field}
+                         value={field.value ?? ''}
+                         onChange={(e) => field.onChange(Number(e.target.value))}
+                         fullWidth
+                      >
+                        <MenuItem value="">
+                          <em>Select…</em>
+                        </MenuItem>
+                        {products?.map(p => (
+                           <MenuItem key={p.id} value={p.id}>
+                             {p.name} (${Number(p.price).toFixed(2)}, stock: {p.stock})
+                           </MenuItem>
+                        ))}
+                     </TextField>
+                   )}
+                />
+              )}
             />
           </Grid>
+
+          <Grid item xs={4}>
+            <Controller
+              name={`items.${idx}.quantity` as const}
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  label="Qty"
+                  type="number"
+                  {...field}
+                  value={field.value ?? ''}
+                  onChange={(e) => field.onChange(Number(e.target.value))}
+                  fullWidth
+                />
+              )}
+            />
+          </Grid>
+
           <Grid item xs={2}>
-            <Button onClick={() => setItems(items.filter((_, j) => j !== idx))}>×</Button>
+            <Button variant="outlined" color="error" onClick={() => remove(idx)}>×</Button>
           </Grid>
         </Grid>
       ))}
-      <Button onClick={() => setItems([...items, {}])}>Add Item</Button>
-      <Button onClick={submit} variant="contained" sx={{ mt: 2 }}>Submit</Button>
-    </>
+
+      <Button variant="text" onClick={() => append({ productId: 0, quantity: 1 })}>Add Item</Button>
+
+      <Box sx={{ mt: 2 }}>
+        <Button type="submit" variant="contained" disabled={create.isLoading}>Submit Order</Button>
+      </Box>
+
+      {create.error && (
+        <Typography color="error" sx={{ mt: 2 }}>
+          {(create.error as any).response?.data || String(create.error)}
+        </Typography>
+      )}
+    </Box>
   );
 }

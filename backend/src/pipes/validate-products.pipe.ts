@@ -1,4 +1,5 @@
 import { PipeTransform, Injectable, BadRequestException } from '@nestjs/common';
+import { CreateOrderDto } from '../dto/create-order.dto';
 import { ProductRepository } from '../products/product.repository';
 
 @Injectable()
@@ -6,15 +7,15 @@ export class ValidateProductsPipe implements PipeTransform {
   constructor(private productRepo: ProductRepository) {}
 
   async transform(value: any) {
-    if (!value.items || !Array.isArray(value.items)) {
+    const dto: CreateOrderDto = value;
+    if (!dto.items || !Array.isArray(dto.items)) {
       throw new BadRequestException('Items must be an array');
     }
-    for (const item of value.items) {
-      const product = await this.productRepo.findById(item.productId);
-      if (!product) throw new BadRequestException(`Product ${item.productId} not found`);
-      if (product.stock < item.quantity)
-        throw new BadRequestException(`Insufficient stock for product ${product.id}`);
+    for (const it of dto.items) {
+      const prod = await this.productRepo.findById(it.productId);
+      if (!prod) throw new BadRequestException(`Product ${it.productId} not found`);
+      if (prod.stock < it.quantity) throw new BadRequestException(`Insufficient stock for product ${it.productId}`);
     }
-    return value;
+    return dto;
   }
 }

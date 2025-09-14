@@ -11,6 +11,11 @@
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@mui/material": "^5.14.12",
+    "@tanstack/react-query": "^5.87.4",
+    "react-router-dom": "^7.9.1",
+    "react-hook-form": "^7.62.0",
+    "zod": "^4.1.8",
+    "@hookform/resolvers": "^5.2.2",
     "axios": "^1.5.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

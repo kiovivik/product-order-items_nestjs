@@ -1,27 +1,31 @@
--- db-init.sql: create tables and seed sample products
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS products;
 
-CREATE TABLE IF NOT EXISTS products (
+CREATE TABLE products (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
-  price REAL NOT NULL,
-  stock INTEGER NOT NULL
+  price NUMERIC(12,2) NOT NULL,
+  stock INTEGER DEFAULT 0 NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS orders (
+CREATE TABLE orders (
   id SERIAL PRIMARY KEY,
-  user_id TEXT NOT NULL
+  user_id INTEGER NOT NULL,
+  total NUMERIC(12,2) NOT NULL,
+  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now() NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS order_items (
+CREATE TABLE order_items (
   id SERIAL PRIMARY KEY,
-  order_id INTEGER REFERENCES orders(id),
-  product_id INTEGER REFERENCES products(id),
-  quantity INTEGER NOT NULL
+  order_id INTEGER NOT NULL REFERENCES orders(id),
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  quantity INTEGER NOT NULL,
+  price NUMERIC(12,2) NOT NULL
 );
 
--- sample products
+
 INSERT INTO products (name, price, stock) VALUES
 ('Keyboard', 49.99, 100),
 ('Mouse', 29.99, 200),
-('Monitor', 199.99, 50)
-ON CONFLICT DO NOTHING;
+('Monitor', 199.99, 50);

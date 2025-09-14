@@ -1,41 +1,70 @@
 import { Injectable } from '@nestjs/common';
 import { DrizzleService } from '../drizzle/drizzle.service';
 import { orders, orderItems, products } from '../drizzle/schema';
-import { eq } from 'drizzle-orm';
 
 @Injectable()
 export class OrderRepository {
-  constructor(private drizzle: DrizzleService) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
-  async createOrder(userId: string, items: { productId: number; quantity: number }[]) {
-    const [order] = await this.drizzle.db
-      .insert(orders)
-      .values({ userId })
-      .returning({ id: orders.id });
+  async createOrderWithItems(
+    userId: number,
+    items: { productId: number; quantity: number; price: string }[],
+  ) {
 
-    for (const item of items) {
-      await this.drizzle.db.insert(orderItems).values({
+    return await this.drizzle.db.transaction(async (tx) => {
+      const total = items.reduce(
+        (sum, i) => sum + Number(i.price) * i.quantity,
+        0,
+      );
+      const [order] = await tx.insert(orders).values({ userId, total }).returning();
+      const itemsToInsert = items.map((i) => ({
         orderId: order.id,
-        productId: item.productId,
-        quantity: item.quantity,
-      });
-    }
-    return order;
+        productId: i.productId,
+        quantity: i.quantity,
+        price: i.price,
+      }));
+      await tx.insert(orderItems).values(itemsToInsert);
+      return order;
+    });
   }
 
   async findAllWithItems() {
-    const allOrders = await this.drizzle.db.select().from(orders);
-    const allItems = await this.drizzle.db.select().from(orderItems);
-    const allProducts = await this.drizzle.db.select().from(products);
+    const db = this.drizzle.db;
 
-    return allOrders.map(order => ({
-      ...order,
-      items: allItems
-        .filter(i => i.orderId === order.id)
-        .map(i => ({
-          ...i,
-          product: allProducts.find(p => p.id === i.productId),
-        })),
+     const ordersList = await db.select().from(orders);
+
+    if (ordersList.length === 0) {
+      return [];
+    }
+
+    const orderIds = ordersList.map(o => o.id);
+
+    const items = await db.query.orderItems.findMany({
+      where: (oi, { inArray }) => inArray(oi.orderId, orderIds),
+    });
+
+    const productIds = Array.from(new Set(items.map(i => i.productId)));
+    const productsList = productIds.length
+      ? await db.query.products.findMany({
+          where: (p, { inArray }) => inArray(p.id, productIds),
+        })
+      : [];
+
+    const itemsByOrder = items.reduce((acc, it) => {
+      const key = it.orderId;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push({
+        ...it,
+        product: productsList.find(p => p.id === it.productId) || null,
+      });
+      return acc;
+    }, {} as Record<number, Array<typeof items[number] & { product: any }>>);
+
+    return ordersList.map(o => ({
+      ...o,
+      items: itemsByOrder[o.id] || [],
     }));
   }
 }

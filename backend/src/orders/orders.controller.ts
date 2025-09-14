@@ -1,20 +1,39 @@
-import { Controller, Get, Post, Body, UsePipes } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseIntPipe } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { ValidateProductsPipe } from '../pipes/validate-products.pipe';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(private service: OrdersService) {}
+  constructor(private readonly ordersService: OrdersService) {}
 
   @Get()
   findAll() {
-    return this.service.findAll();
+    return this.ordersService.getOrderSummaries();
   }
 
   @Post()
-  @UsePipes(ValidateProductsPipe)
-  create(@Body() body: CreateOrderDto) {
-    return this.service.create(body.userId, body.items);
+  async create(@Body(ValidateProductsPipe) dto: CreateOrderDto) {
+    return this.ordersService.create(dto);
+  }
+
+  @Get('grouped')
+  getGrouped() {
+    return this.ordersService.getGroupedByUser();
+  }
+
+  @Get('summary')
+  getSummary() {
+    return this.ordersService.getOrderSummaries();
+  }
+
+  @Get(':id/total')
+  getOrderTotal(@Param('id', ParseIntPipe) id: number) {
+    // todo: shouldn't fetch all orders, findOrderWithItemsById instead
+    return this.ordersService.getOrderSummaries().then((summaries) => {
+      const order = summaries.find((s: any) => s.orderId === id);
+      if (!order) return { total: 0 };
+      return { total: Number(order.total) };
+    });
   }
 }

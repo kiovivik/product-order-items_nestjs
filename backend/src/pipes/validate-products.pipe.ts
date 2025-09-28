@@ -14,7 +14,7 @@ export class ValidateProductsPipe implements PipeTransform {
     for (const it of dto.items) {
       const prod = await this.productRepo.findById(it.productId);
       if (!prod) throw new BadRequestException(`Product ${it.productId} not found`);
-      if (prod.stock < it.quantity) throw new BadRequestException(`Insufficient stock for product ${it.productId}`);
+      if (prod.stock < it.quantity) throw new BadRequestException(`Insufficient stock`);
     }
     return dto;
   }

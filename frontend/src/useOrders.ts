@@ -29,8 +29,8 @@ export const useCreateOrder = () => {
       return r.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries(['orderSummaries']);
-      qc.invalidateQueries(['products']);
+      qc.invalidateQueries({queryKey: ['products']});
+      qc.invalidateQueries({ queryKey: ['orderSummaries'] });
     },
   });
 };

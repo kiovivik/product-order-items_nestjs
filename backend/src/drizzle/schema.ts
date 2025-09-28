@@ -12,12 +12,14 @@ export const products = pgTable('products', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
   price: numeric('price', { precision: 12, scale: 2 }).notNull(),
+  // todo: products table should not contain stock(which is quantity). Ideally it should be moved in a additional stock table!
   stock: integer('stock').default(0).notNull(),
 });
 
 export const orders = pgTable('orders', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').notNull(),
+  // total is just for the playground
   total: numeric('total', { precision: 12, scale: 2 }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -27,7 +29,7 @@ export const orderItems = pgTable('order_items', {
   orderId: integer('order_id').references(() => orders.id).notNull(),
   productId: integer('product_id').references(() => products.id).notNull(),
   quantity: integer('quantity').notNull(),
-  // todo: orderItems table should not contain price, database should be normalized insted
+  // todo: orderItems table should not contain price, database should be normalized instead
   price: numeric('price', { precision: 12, scale: 2 }).notNull(),
 });
 
@@ -40,8 +42,3 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
   product: one(products),
   order: one(orders),
 }));
-
-// convenience types
-export type Product = typeof products.$inferSelect;
-export type Order = typeof orders.$inferSelect;
-export type OrderItem = typeof orderItems.$inferSelect;

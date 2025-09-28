@@ -29,7 +29,7 @@ export class OrdersController {
 
   @Get(':id/total')
   getOrderTotal(@Param('id', ParseIntPipe) id: number) {
-    // todo: shouldn't fetch all orders, findOrderWithItemsById instead
+    // todo: shouldn't fetch all orders, better findOrderWithItemsById instead
     return this.ordersService.getOrderSummaries().then((summaries) => {
       const order = summaries.find((s: any) => s.orderId === id);
       if (!order) return { total: 0 };

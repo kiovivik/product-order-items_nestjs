@@ -29,7 +29,7 @@ export function OrderForm() {
   const { data: products } = useProducts();
   const create = useCreateOrder();
 
-  const { control, handleSubmit, reset } = useForm<FormData>({
+  const { control, handleSubmit, reset, setError, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { userId: 0, items: [{ productId: 0, quantity: 1 }] },
     mode: 'onBlur',
@@ -46,6 +46,10 @@ export function OrderForm() {
     create.mutate(payload, {
       onSuccess: () => {
         reset({ userId: 0, items: [{ productId: 0, quantity: 1 }] });
+      },
+      onError: (error: any) => {
+        console.error('Create failed', error);
+        setError('userId', { type: 'server', message: 'Create failed' });
       },
     });
   };
@@ -77,29 +81,23 @@ export function OrderForm() {
               name={`items.${idx}.productId` as const}
               control={control}
               render={({ field }) => (
-                  <Controller
-                    name={`items.${idx}.productId` as const}
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                         select
-                         label="Product"
-                         {...field}
-                         value={field.value ?? ''}
-                         onChange={(e) => field.onChange(Number(e.target.value))}
-                         fullWidth
-                      >
-                        <MenuItem value="">
-                          <em>Select…</em>
-                        </MenuItem>
-                        {products?.map(p => (
-                           <MenuItem key={p.id} value={p.id}>
-                             {p.name} (${Number(p.price).toFixed(2)}, stock: {p.stock})
-                           </MenuItem>
-                        ))}
-                     </TextField>
-                   )}
-                />
+                <TextField
+                    select
+                    label="Product"
+                    {...field}
+                    value={field.value ?? ''}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
+                    fullWidth
+                >
+                  <MenuItem value="">
+                    <em>Select…</em>
+                  </MenuItem>
+                  {products?.map(p => (
+                      <MenuItem key={p.id} value={p.id}>
+                        {p.name} (${Number(p.price).toFixed(2)}, stock: {p.stock})
+                      </MenuItem>
+                  ))}
+                </TextField>
               )}
             />
           </Grid>
@@ -130,7 +128,7 @@ export function OrderForm() {
       <Button variant="text" onClick={() => append({ productId: 0, quantity: 1 })}>Add Item</Button>
 
       <Box sx={{ mt: 2 }}>
-        <Button type="submit" variant="contained" disabled={create.isLoading}>Submit Order</Button>
+        <Button type="submit" variant="contained">Submit Order</Button>
       </Box>
 
       {create.error && (

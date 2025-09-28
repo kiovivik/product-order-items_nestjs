@@ -33,9 +33,9 @@ export class OrdersService {
       return { id: p.id, newStock: p.stock - ordered };
     });
 
-    await this.productRepo.updateStocks(newStocks);
+    //await this.productRepo.updateStocks(newStocks);
 
-    const order = await this.orderRepo.createOrderWithItems(dto.userId, itemsWithPrice);
+    const order = await this.orderRepo.createOrderWithItems(dto.userId, itemsWithPrice, newStocks);
     return order;
   }
 
